@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* #2e7d32 = hsl(123 46% 34%), фон #f4f8f2 = hsl(100 33% 96%) */
+    --background: 100 33% 96%;
+    --foreground: 140 25% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 140 25% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 140 25% 12%;
+    --primary: 123 46% 34%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 110 30% 90%;
+    --secondary-foreground: 123 46% 20%;
+    --muted: 100 20% 92%;
+    --muted-foreground: 140 8% 38%;
+    --accent: 110 35% 88%;
+    --accent-foreground: 123 46% 20%;
+    --destructive: 0 66% 47%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 100 15% 85%;
+    --input: 100 15% 80%;
+    --ring: 123 46% 34%;
+    --radius: 0.75rem;
+  }
+  .dark {
+    --background: 140 18% 8%;
+    --foreground: 100 20% 92%;
+    --card: 140 15% 12%;
+    --card-foreground: 100 20% 92%;
+    --popover: 140 15% 12%;
+    --popover-foreground: 100 20% 92%;
+    --primary: 123 40% 50%;
+    --primary-foreground: 140 30% 8%;
+    --secondary: 140 12% 18%;
+    --secondary-foreground: 100 20% 92%;
+    --muted: 140 12% 18%;
+    --muted-foreground: 100 8% 65%;
+    --accent: 140 15% 20%;
+    --accent-foreground: 100 20% 92%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 140 10% 22%;
+    --input: 140 10% 26%;
+    --ring: 123 40% 50%;
+  }
+  * { @apply border-border; }
+  html, body, #root { height: 100%; }
+  /* мобильные: без «резинового» прокручивания всего экрана, без масштабирования шрифта и задержки тапа */
+  html, body { overscroll-behavior: none; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  button, a, [role='button'], input, select, textarea, label { touch-action: manipulation; }
+  main { overscroll-behavior-y: contain; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+.leaflet-container { font-family: inherit; background: hsl(var(--muted)); }
+.dark .leaflet-popup-content-wrapper, .dark .leaflet-popup-tip { background: hsl(var(--card)); color: hsl(var(--card-foreground)); }
+.leaflet-popup-content { margin: 12px; }
+.eco-marker { background: transparent; border: none; }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+/* ---------- Метки карты ---------- */
+.eco-event-pin {
+  width: 38px; height: 38px; border-radius: 50% 50% 50% 4px; transform: rotate(-45deg);
+  background: var(--pin); border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center;
+}
+.eco-event-pin > span { transform: rotate(45deg); font-size: 18px; line-height: 1; }
+.eco-event-pin.eco-muted { filter: grayscale(.6); opacity: .8; }
+.eco-report-dot { border-radius: 9999px; border: 3px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,.4); }
+.eco-critical { animation: eco-pulse 1.6s ease-out infinite; }
+@keyframes eco-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(198,40,40,.6), 0 1px 5px rgba(0,0,0,.4); }
+  100% { box-shadow: 0 0 0 14px rgba(198,40,40,0), 0 1px 5px rgba(0,0,0,.4); }
+}
+.eco-cluster {
+  width: 40px; height: 40px; border-radius: 9999px; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: #fff; border: 3px solid rgba(255,255,255,.9); box-shadow: 0 2px 6px rgba(0,0,0,.3);
+}
+.eco-cluster-events { background: #2e7d32; }
+.eco-cluster-reports { background: #ef6c00; }
+@media (prefers-reduced-motion: reduce) { .eco-critical { animation: none; } }
+/* Тёмная тема для схемы OSM (как было изначально) */
+.eco-tiles-dark { filter: brightness(0.7) invert(1) contrast(0.9) hue-rotate(200deg) saturate(0.4) brightness(0.9); }
+/* Подпись источника карты: компактно и ненавязчиво (убирать её нельзя — требование лицензии OSM/Esri) */
+.leaflet-container .leaflet-control-attribution {
+  font-size: 10px; line-height: 1.4; padding: 0 5px; border-top-left-radius: 6px;
+  background: hsl(var(--card) / 0.55); color: hsl(var(--muted-foreground));
+}
+.leaflet-container .leaflet-control-attribution a { color: inherit; }

@@ -1,0 +1,31 @@
+# Render Blueprint: API EcoAbai на бесплатном тарифе (Docker).
+# Секреты (SECRET_KEY, DEMO_PASSWORD) Render сгенерирует сам; адрес базы Neon и домен Vercel вводятся в панели Render.
+services:
+  - type: web
+    name: ecoabai-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: ECOABAI_ENV
+        value: prod
+      - key: ECOABAI_COOKIE_SECURE
+        value: "true"
+      - key: ECOABAI_SECRET_KEY
+        generateValue: true
+      - key: ECOABAI_DATABASE_URL
+        sync: false # строка подключения Neon (postgresql://…)
+      - key: ECOABAI_ALLOWED_ORIGINS
+        sync: false # ["https://<проект>.vercel.app"]
+      - key: ECOABAI_FRONTEND_URL
+        sync: false # https://<проект>.vercel.app
+      - key: ECOABAI_SEED_DEMO
+        value: "true"
+      - key: ECOABAI_DEMO_PASSWORD
+        generateValue: true # пароль демо-аккаунтов — смотреть во вкладке Environment
