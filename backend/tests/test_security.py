@@ -105,7 +105,6 @@ def test_resident_cannot_use_admin_endpoints(resident: Api) -> None:
                                            "starts_at": "2030-01-01T10:00:00Z", "lat": 1, "lng": 1}),
         resident.post(f"/api/reports/{rep['id']}/status", json={"status": "resolved"}),
         resident.patch("/api/settings", json={"population": 1}),
-        resident.post("/api/streets", json={"name_ru": "x", "name_kk": "x"}),
     ]
     assert [r.status_code for r in checks] == [403] * len(checks)
 

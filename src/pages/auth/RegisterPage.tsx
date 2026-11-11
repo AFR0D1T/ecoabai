@@ -1,16 +1,13 @@
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
 import { Loader2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
-import { SimpleSelect } from '@/components/ui/select';
 import { useSignUp } from '@/hooks/useAuth';
-import { useStreets } from '@/hooks/useSettings';
 import { errorCode } from '@/api/errors';
-import { streetName } from '@/lib/format';
 import { AuthCard, safeNext } from './AuthCard';
 
 const schema = z
@@ -18,7 +15,6 @@ const schema = z
     first_name: z.string().trim().min(1, 'validation.required').max(50, 'validation.tooLong'),
     last_name: z.string().trim().min(1, 'validation.required').max(50, 'validation.tooLong'),
     email: z.string().trim().min(1, 'validation.required').email('validation.email'),
-    street_id: z.string({ required_error: 'validation.street' }).min(1, 'validation.street'),
     password: z.string().min(6, 'validation.passwordMin'),
     confirm: z.string(),
   })
@@ -31,10 +27,8 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const signUp = useSignUp();
-  const { data: streets = [] } = useStreets();
-  const { register, control, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { street_id: '' },
   });
   const err = (m?: string) => (m ? t(m) : undefined);
 
@@ -60,21 +54,6 @@ export default function RegisterPage() {
         </div>
         <Field label={t('auth.email')} htmlFor="email" error={err(errors.email?.message)}>
           <Input id="email" type="email" autoComplete="email" inputMode="email" aria-invalid={!!errors.email} {...register('email')} />
-        </Field>
-        <Field label={t('auth.street')} htmlFor="street" error={err(errors.street_id?.message)}>
-          <Controller
-            control={control}
-            name="street_id"
-            render={({ field }) => (
-              <SimpleSelect
-                id="street"
-                value={field.value}
-                onValueChange={field.onChange}
-                placeholder={t('auth.chooseStreet')}
-                options={streets.map((s) => ({ value: s.id, label: streetName(s) }))}
-              />
-            )}
-          />
         </Field>
         <Field label={t('auth.password')} htmlFor="password" error={err(errors.password?.message)} hint={t('validation.passwordMin')}>
           <Input id="password" type="password" autoComplete="new-password" aria-invalid={!!errors.password} {...register('password')} />

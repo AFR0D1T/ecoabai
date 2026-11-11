@@ -1,4 +1,4 @@
-"""Демо-данные (как в моках фронтенда): 6 улиц, ~40 жителей, 8 мероприятий, 25 обращений, значки.
+"""Демо-данные: ~40 жителей, 8 мероприятий, 25 обращений, значки.
 
 Запуск вручную:  python -m app.seed --reset
 """
@@ -7,13 +7,13 @@ import math
 import random
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
 from .config import get_settings
 from .db import Base, SessionLocal, engine, utcnow
 from .models import (
-    Badge, StoredFile, Event, EventParticipant, Notification, PointTransaction, Report, ReportStatusChange, Street, User,
+    Badge, StoredFile, Event, EventParticipant, Notification, PointTransaction, Report, ReportStatusChange, User,
     VillageSettings,
 )
 from .security import hash_password
@@ -76,32 +76,15 @@ def seed(db: Session) -> None:
     lat0, lng0 = CENTER
     write_svgs(db)
 
-    streets = add_streets(db)
     db.add(VillageSettings(id=1, name_ru="село Абай", name_kk="Абай ауылы", population=3200,
                            center_lat=lat0, center_lng=lng0, default_zoom=15, bounds=None))
     db.add_all(Badge(code=c, name_ru=nr, name_kk=nk, description_ru=dr, description_kk=dk, icon=i)
                for c, nr, nk, dr, dk, i in BADGES)
     db.flush()
-    _seed_demo(db, streets, rnd, now, lat0, lng0)
+    _seed_demo(db, rnd, now, lat0, lng0)
 
 
-def add_streets(db: Session) -> list[Street]:
-    lat0, lng0 = CENTER
-    defs = [
-        ("ул. Абая", "Абай көшесі", [[lat0, lng0 - 0.0085], [lat0, lng0 + 0.0085]]),
-        ("ул. Школьная", "Мектеп көшесі", [[lat0 + 0.003, lng0 - 0.0075], [lat0 + 0.003, lng0 + 0.0075]]),
-        ("ул. Мира", "Бейбітшілік көшесі", [[lat0 - 0.0055, lng0 - 0.0055], [lat0 + 0.0055, lng0 - 0.0055]]),
-        ("ул. Жамбыла", "Жамбыл көшесі", [[lat0 - 0.0055, lng0 + 0.0055], [lat0 + 0.0055, lng0 + 0.0055]]),
-        ("ул. Центральная", "Орталық көшесі", [[lat0 - 0.006, lng0], [lat0 + 0.006, lng0]]),
-        ("ул. Садовая", "Бақша көшесі", [[lat0 - 0.003, lng0 - 0.0075], [lat0 - 0.003, lng0 + 0.0075]]),
-    ]
-    streets = [Street(name_ru=a, name_kk=b, geometry=g) for a, b, g in defs]
-    db.add_all(streets)
-    db.flush()
-    return streets
-
-
-def _seed_demo(db: Session, streets: list[Street], rnd: random.Random, now: datetime, lat0: float, lng0: float) -> None:
+def _seed_demo(db: Session, rnd: random.Random, now: datetime, lat0: float, lng0: float) -> None:
 
     # один хэш на всех демо-пользователей — сид быстрее; в prod пароль задаётся ECOABAI_DEMO_PASSWORD
     pw = hash_password(get_settings().demo_password or TEST_PASSWORD)
@@ -109,15 +92,15 @@ def _seed_demo(db: Session, streets: list[Street], rnd: random.Random, now: date
     def mk(first: str, last: str, email: str, **kw: object) -> User:
         created = now - timedelta(days=rnd.randint(5, 150), seconds=rnd.randint(0, 86000))
         u = User(email=email, password_hash=pw, first_name=first, last_name=last,
-                 street_id=kw.pop("street_id", rnd.choice(streets).id), created_at=created,
+                 created_at=created,
                  last_active_at=max(created, now - timedelta(days=rnd.randint(0, 45), seconds=rnd.randint(0, 80000))),
                  **kw)
         db.add(u)
         return u
 
-    admin = mk("Айгуль", "Сарсенова", "admin@test.kz", role="admin", street_id=streets[4].id)
+    admin = mk("Айгуль", "Сарсенова", "admin@test.kz", role="admin")
     admin.created_at, admin.last_active_at = now - timedelta(days=200), now - timedelta(hours=1)
-    resident = mk("Ерлан", "Тулегенов", "resident@test.kz", street_id=streets[0].id)
+    resident = mk("Ерлан", "Тулегенов", "resident@test.kz")
     resident.created_at, resident.last_active_at = now - timedelta(days=90), now - timedelta(hours=2)
     used: set[str] = set()
     others: list[User] = []
@@ -141,17 +124,17 @@ def _seed_demo(db: Session, streets: list[Street], rnd: random.Random, now: date
         ("Субботник на берегу реки", "Убираем мусор вдоль берега реки и у моста. Перчатки и мешки выдадим на месте. Возьмите удобную обувь и воду.",
          "cleanup", "finished", -40, 10, 3, -0.0045, 0.0062, "Берег реки, у моста", 30, 20),
         ("Посадка деревьев у школы", "Высаживаем 40 саженцев карагача и клёна вокруг школьного двора. Лопаты есть, приходите всей семьёй!",
-         "tree_planting", "finished", -25, 11, 3, 0.0034, -0.002, "ул. Школьная, 12 (школа)", 25, 25),
+         "tree_planting", "finished", -25, 11, 3, 0.0034, -0.002, "Школа, школьный двор", 25, 25),
         ("Сбор вторсырья: пластик и макулатура", "Принимаем чистый пластик (ПЭТ), картон и бумагу. Всё вывезем на переработку в город.",
          "recycling", "finished", -10, 12, 4, 0.0004, 0.0006, "Площадь у акимата", None, 15),
-        ("Осенний субботник на Садовой", "Сгребаем листву, убираем стихийную свалку в конце улицы. Встречаемся у магазина «Береке».",
-         "cleanup", "published", 3, 10, 3, -0.003, -0.004, "ул. Садовая, магазин «Береке»", 30, 20),
+        ("Осенний субботник у магазина «Береке»", "Сгребаем листву, убираем стихийную свалку неподалёку. Встречаемся у магазина «Береке».",
+         "cleanup", "published", 3, 10, 3, -0.003, -0.004, "Магазин «Береке»", 30, 20),
         ("Лекция «Сортировка отходов дома»", "Рассказываем, как разделять отходы, что принимают пункты приёма и как уменьшить количество мусора в семье.",
-         "lecture", "published", 6, 18, 1, 0.0008, -0.0006, "Дом культуры, ул. Абая, 5", 30, 10),
+         "lecture", "published", 6, 18, 1, 0.0008, -0.0006, "Дом культуры", 30, 10),
         ("Сбор батареек и ламп", "Батарейки и энергосберегающие лампы нельзя выбрасывать в общий бак. Сдайте их — отправим на утилизацию.",
-         "recycling", "published", 12, 11, 5, 0.0012, 0.0049, "ул. Жамбыла, 20, у почты", None, 15),
-        ("Посадка аллеи на Центральной", "Высаживаем аллею из 20 берёз. Количество мест ограничено числом лопат.",
-         "tree_planting", "published", 20, 10, 4, 0.0048, 0.0002, "ул. Центральная, сквер", 10, 25),
+         "recycling", "published", 12, 11, 5, 0.0012, 0.0049, "У почты", None, 15),
+        ("Посадка аллеи в сквере", "Высаживаем аллею из 20 берёз. Количество мест ограничено числом лопат.",
+         "tree_planting", "published", 20, 10, 4, 0.0048, 0.0002, "Сквер у акимата", 10, 25),
         ("Эко-квест для детей", "Игра по станциям для детей 7–12 лет: узнаём, как помочь природе родного села.",
          "other", "draft", 30, 15, 2, -0.001, 0.002, "Школьный стадион", 40, 20),
     ]
@@ -202,8 +185,6 @@ def _seed_demo(db: Session, streets: list[Street], rnd: random.Random, now: date
     }
     chains = {"new": ["new"], "in_review": ["new", "in_review"], "in_progress": ["new", "in_review", "in_progress"],
               "resolved": ["new", "in_review", "in_progress", "resolved"], "rejected": ["new", "in_review", "rejected"]}
-    from .services.geo import nearest
-    lines = {s.id: s.geometry for s in streets}
     for i, st in enumerate(plan):
         t = rnd.choice(types)
         sev = 3 if t == "toxic_release" else rnd.randint(1, 3)
@@ -212,7 +193,7 @@ def _seed_demo(db: Session, streets: list[Street], rnd: random.Random, now: date
         ang, r = rnd.random() * math.tau, 0.001 + rnd.random() * 0.0055
         lat, lng = lat0 + math.sin(ang) * r * 0.8, lng0 + math.cos(ang) * r
         rep = Report(user_id=author.id, type=t, severity=sev, description=rnd.choice(descs[t]), lat=lat, lng=lng,
-                     street_id=nearest((lat, lng), lines), status=st,
+                     status=st,
                      photo_urls=[art(f"photo_{t}")] * rnd.randint(1, 2), created_at=created, updated_at=created)
         db.add(rep)
         db.flush()
@@ -281,15 +262,52 @@ def ensure_admin(db: Session) -> None:
     db.commit()
 
 
+# Старые демо-данные с выдуманными улицами → нейтральные названия (для уже развёрнутых баз).
+LEGACY_EVENTS = {
+    "Осенний субботник на Садовой": ("Осенний субботник у магазина «Береке»", "Магазин «Береке»"),
+    "Посадка аллеи на Центральной": ("Посадка аллеи в сквере", "Сквер у акимата"),
+}
+LEGACY_ADDRESSES = {
+    "ул. Школьная, 12 (школа)": "Школа, школьный двор",
+    "ул. Садовая, магазин «Береке»": "Магазин «Береке»",
+    "Дом культуры, ул. Абая, 5": "Дом культуры",
+    "ул. Жамбыла, 20, у почты": "У почты",
+    "ул. Центральная, сквер": "Сквер у акимата",
+}
+
+
+def drop_legacy_streets() -> None:
+    """Улицы убраны из приложения: удаляем их таблицу и столбцы street_id (идемпотентно)."""
+    if engine.dialect.name != "postgresql":
+        return  # локальная SQLite: лишние nullable-столбцы ничему не мешают
+    if "streets" not in inspect(engine).get_table_names():
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE users DROP COLUMN IF EXISTS street_id"))
+        conn.execute(text("ALTER TABLE reports DROP COLUMN IF EXISTS street_id"))
+        conn.execute(text("DROP TABLE IF EXISTS streets"))
+
+
+def rename_legacy_events(db: Session) -> None:
+    for ev in db.scalars(select(Event)):
+        if ev.title in LEGACY_EVENTS:
+            ev.title, ev.address = LEGACY_EVENTS[ev.title]
+            if ev.description.endswith("в конце улицы. Встречаемся у магазина «Береке»."):
+                ev.description = ev.description.replace("в конце улицы", "неподалёку")
+        if ev.address in LEGACY_ADDRESSES:
+            ev.address = LEGACY_ADDRESSES[ev.address]
+    db.commit()
+
+
 def init_db(seed_if_empty: bool) -> None:
+    drop_legacy_streets()
     Base.metadata.create_all(engine)
     with SessionLocal() as db:
         if not db.get(VillageSettings, 1):
             if seed_if_empty:
                 seed(db)
-            else:  # чистый запуск: настройки, значки и улицы села, без демо-жителей
+            else:  # чистый запуск: настройки и значки, без демо-жителей
                 write_svgs(db)
-                add_streets(db)
                 db.add(VillageSettings(id=1, name_ru="село Абай", name_kk="Абай ауылы", population=3200,
                                        center_lat=CENTER[0], center_lng=CENTER[1], default_zoom=15))
                 db.add_all(Badge(code=c, name_ru=nr, name_kk=nk, description_ru=dr, description_kk=dk, icon=i)
@@ -297,6 +315,7 @@ def init_db(seed_if_empty: bool) -> None:
                 db.commit()
         write_svgs(db)  # картинки демо-данных (идемпотентно)
         db.commit()
+        rename_legacy_events(db)
         ensure_admin(db)
 
 

@@ -18,9 +18,8 @@ import { ReportStatusBadge, ReportTypeLabel, SeverityBadge } from '@/components/
 import { ReportPopupCard } from '@/features/map/MapPopups';
 import { ReportDetailSheet } from '@/features/admin/ReportDetailSheet';
 import { useReports } from '@/hooks/useReports';
-import { useStreetLookup, useStreets } from '@/hooks/useSettings';
 import { REPORT_STATUSES, REPORT_TYPES, SEVERITIES, REPORT_TYPE_META } from '@/lib/domain';
-import { fmtDateTime, streetName } from '@/lib/format';
+import { fmtDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 type SortKey = NonNullable<ReportFilters['sort']>;
@@ -32,34 +31,30 @@ export default function ReportsAdminPage() {
   const [view, setView] = useState<'table' | 'map'>('table');
   const [status, setStatus] = useState<ReportStatus | 'all'>('all');
   const [type, setType] = useState<ReportType | 'all'>('all');
-  const [streetId, setStreetId] = useState<string>('all');
   const [severity, setSeverity] = useState<string>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [sort, setSort] = useState<SortKey>('date_desc');
-  const { data: streets = [] } = useStreets();
-  const street = useStreetLookup();
 
   const filters: ReportFilters = useMemo(
     () => ({
       statuses: status === 'all' ? undefined : [status],
       type,
-      street_id: streetId,
       severity: severity === 'all' ? 'all' : (Number(severity) as Severity),
       from: from ? new Date(`${from}T00:00:00`).toISOString() : null,
       to: to ? new Date(`${to}T23:59:59`).toISOString() : null,
       sort,
     }),
-    [status, type, streetId, severity, from, to, sort],
+    [status, type, severity, from, to, sort],
   );
   const { data, isLoading } = useReports(filters);
 
   const open = (id: string) => setParams((p) => { p.set('id', id); return p; });
   const close = () => setParams((p) => { p.delete('id'); return p; });
   const resetFilters = () => {
-    setStatus('all'); setType('all'); setStreetId('all'); setSeverity('all'); setFrom(''); setTo(''); setSort('date_desc');
+    setStatus('all'); setType('all'); setSeverity('all'); setFrom(''); setTo(''); setSort('date_desc');
   };
-  const hasFilters = status !== 'all' || type !== 'all' || streetId !== 'all' || severity !== 'all' || from || to;
+  const hasFilters = status !== 'all' || type !== 'all' || severity !== 'all' || from || to;
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -86,11 +81,6 @@ export default function ReportsAdminPage() {
           <Label htmlFor="f-type">{t('admin.reports.fType')}</Label>
           <SimpleSelect id="f-type" value={type} onValueChange={(v) => setType(v as ReportType | 'all')}
             options={[{ value: 'all', label: t('common.all') }, ...REPORT_TYPES.map((s) => ({ value: s, label: `${REPORT_TYPE_META[s].emoji} ${t(`reportType.${s}`)}` }))]} />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="f-street">{t('admin.reports.fStreet')}</Label>
-          <SimpleSelect id="f-street" value={streetId} onValueChange={setStreetId}
-            options={[{ value: 'all', label: t('common.all') }, ...streets.map((s) => ({ value: s.id, label: streetName(s) }))]} />
         </div>
         <div className="space-y-1">
           <Label htmlFor="f-sev">{t('admin.reports.fSeverity')}</Label>
@@ -132,7 +122,6 @@ export default function ReportsAdminPage() {
                   <TableHead>{t('admin.reports.cDate')}</TableHead>
                   <TableHead>{t('admin.reports.cType')}</TableHead>
                   <TableHead>{t('admin.reports.cSeverity')}</TableHead>
-                  <TableHead>{t('admin.reports.cStreet')}</TableHead>
                   <TableHead>{t('admin.reports.cStatus')}</TableHead>
                   <TableHead className="hidden lg:table-cell">{t('admin.reports.cDescription')}</TableHead>
                 </TableRow>
@@ -153,7 +142,6 @@ export default function ReportsAdminPage() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap"><ReportTypeLabel type={r.type} className="font-normal" /></TableCell>
                     <TableCell><SeverityBadge report={r} /></TableCell>
-                    <TableCell className="whitespace-nowrap">{streetName(street(r.street_id))}</TableCell>
                     <TableCell><ReportStatusBadge status={r.status} /></TableCell>
                     <TableCell className="hidden max-w-xs truncate text-muted-foreground lg:table-cell">{r.description}</TableCell>
                   </TableRow>

@@ -43,7 +43,6 @@ class ProfileOut(Out):
     first_name: str
     last_name: str
     email: str
-    street_id: str | None
     role: Role
     points: int
     avatar_url: str | None
@@ -55,12 +54,6 @@ class ProfileOut(Out):
 class SessionOut(BaseModel):
     user: ProfileOut | None
     csrf_token: str | None
-
-
-class StreetOut(Out):
-    id: str
-    name_ru: str
-    name_kk: str
 
 
 class EventOut(Out):
@@ -107,7 +100,6 @@ class ReportOut(Out):
     description: str
     lat: float
     lng: float
-    street_id: str | None
     status: ReportStatus
     photo_urls: list[str]
     resolved_photo_url: str | None
@@ -185,7 +177,6 @@ class LeaderProfileOut(BaseModel):
     id: str
     first_name: str
     last_name: str
-    street_id: str | None
     avatar_url: str | None
 
 
@@ -198,15 +189,6 @@ class LeaderboardEntryOut(BaseModel):
 class RankOut(BaseModel):
     rank: int | None
     total: int
-
-
-class StreetRankingOut(BaseModel):
-    rank: int
-    street: StreetOut
-    active_reports: int
-    severity_score: int
-    resolved_reports: int
-    cleanliness: int
 
 
 class UploadOut(BaseModel):
@@ -225,7 +207,6 @@ class SignUpIn(BaseModel):
     last_name: Name
     email: EmailStr
     password: Annotated[str, Field(min_length=6, max_length=128)]
-    street_id: Id
 
 
 class PasswordResetRequestIn(BaseModel):
@@ -241,7 +222,6 @@ class ProfileUpdateIn(BaseModel):
     model_config = ConfigDict(extra="forbid")  # роль/баллы/блокировку через этот эндпоинт менять нельзя
     first_name: Name | None = None
     last_name: Name | None = None
-    street_id: Id | None = None
     avatar_url: UploadUrl | None = None
     locale: Lang | None = None
 
@@ -305,7 +285,6 @@ class ReportIn(BaseModel):
     description: Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=500)]
     lat: Lat
     lng: Lng
-    street_id: Id | None = None
     photo_urls: Annotated[list[UploadUrl], Field(max_length=3)] = []
 
     @model_validator(mode="after")
@@ -330,11 +309,6 @@ class BlockIn(BaseModel):
 
 class RoleIn(BaseModel):
     role: Role
-
-
-class StreetIn(BaseModel):
-    name_ru: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
-    name_kk: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 
 
 class SettingsPatchIn(BaseModel):

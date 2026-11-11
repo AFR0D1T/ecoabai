@@ -21,11 +21,9 @@ router = APIRouter(tags=["community"])
 # ---------- пользователи (только админ) ----------
 
 @router.get("/admin/users", response_model=list[ProfileOut])
-def list_users(search: str = "", street_id: str = "all", _: User = Depends(require_admin),
+def list_users(search: str = "", _: User = Depends(require_admin),
                db: Session = Depends(get_db)) -> list[User]:
     q = select(User).order_by(User.created_at.desc())
-    if street_id != "all":
-        q = q.where(User.street_id == street_id)
     term = search.strip()[:100]
     if term:
         like = f"%{term.lower()}%"
@@ -80,7 +78,7 @@ def leaderboard(period: Literal["month", "all"] = "month", limit: int = 50,
         prev = pts
         # публично — только имя и первая буква фамилии
         out.append(LeaderboardEntryOut(rank=rank, points=pts, profile=LeaderProfileOut(
-            id=u.id, first_name=u.first_name, last_name=u.last_name[:1], street_id=u.street_id,
+            id=u.id, first_name=u.first_name, last_name=u.last_name[:1],
             avatar_url=u.avatar_url)))
     return out
 

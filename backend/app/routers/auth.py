@@ -10,7 +10,7 @@ from ..config import get_settings
 from ..db import get_db, utcnow
 from ..deps import AuthContext, current_user, get_auth
 from ..errors import ApiError
-from ..models import AuthSession, PasswordResetToken, Street, UsedRefreshToken, User
+from ..models import AuthSession, PasswordResetToken, UsedRefreshToken, User
 from ..schemas import (
     PasswordResetConfirmIn, PasswordResetRequestIn, ProfileOut, ProfileUpdateIn, SessionOut, SignInIn, SignUpIn,
 )
@@ -92,12 +92,10 @@ def login(body: SignInIn, request: Request, response: Response, db: Session = De
 def register(body: SignUpIn, request: Request, response: Response, db: Session = Depends(get_db)) -> SessionOut:
     limiter.hit(f"register:ip:{client_ip(request)}", 10, 3600)
     email = body.email.lower()
-    if not db.get(Street, body.street_id):
-        raise ApiError(422, "validation")
     if db.scalar(select(User.id).where(User.email == email)):
         raise ApiError(409, "email_taken")
     user = User(email=email, password_hash=hash_password(body.password), first_name=body.first_name,
-                last_name=body.last_name, street_id=body.street_id, role="resident")
+                last_name=body.last_name, role="resident")
     db.add(user)
     db.flush()
     csrf = _start_session(db, user, request, response)
@@ -197,8 +195,6 @@ def update_me(body: ProfileUpdateIn, user: User = Depends(current_user), db: Ses
     for f in ("first_name", "last_name", "locale"):
         if f in data and data[f] is None:
             raise ApiError(422, "validation")
-    if data.get("street_id") and not db.get(Street, data["street_id"]):
-        raise ApiError(422, "validation")
     for k, v in data.items():
         setattr(user, k, v)
     db.commit()

@@ -8,7 +8,6 @@ export function listReports(f: ReportFilters = {}): Promise<Report[]> {
   return http.get<Report[]>('/reports', {
     status: f.statuses,
     type: f.type ?? 'all',
-    street_id: f.street_id ?? 'all',
     severity: f.severity === undefined ? 'all' : String(f.severity),
     from: f.from ?? undefined,
     to: f.to ?? undefined,

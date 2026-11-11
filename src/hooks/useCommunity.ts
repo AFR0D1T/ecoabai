@@ -25,10 +25,6 @@ export function useUserRank(userId: string | undefined) {
   });
 }
 
-export function useStreetRanking() {
-  return useQuery({ queryKey: queryKeys.streetRanking, queryFn: statsApi.getStreetRanking });
-}
-
 export function useDashboardStats() {
   return useQuery({ queryKey: queryKeys.dashboard, queryFn: statsApi.getDashboardStats });
 }

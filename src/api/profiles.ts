@@ -5,7 +5,7 @@ import { http } from './http';
 const id = (v: string) => encodeURIComponent(v);
 
 export const listProfiles = (f: ProfileFilters = {}) =>
-  http.get<Profile[]>('/admin/users', { search: f.search, street_id: f.street_id ?? 'all' });
+  http.get<Profile[]>('/admin/users', { search: f.search });
 export const setUserBlocked = (userId: string, blocked: boolean) =>
   http.put<Profile>(`/admin/users/${id(userId)}/blocked`, { blocked });
 export const setUserRole = (userId: string, role: Role) => http.put<Profile>(`/admin/users/${id(userId)}/role`, { role });

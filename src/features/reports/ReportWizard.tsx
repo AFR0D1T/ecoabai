@@ -15,12 +15,9 @@ import { pointIcon } from '@/components/map/markers';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Field, FieldError, Label, Textarea } from '@/components/ui/input';
-import { SimpleSelect } from '@/components/ui/select';
-import { useStreets, useNearestStreet } from '@/hooks/useSettings';
 import { useCreateReport, useUploadPhoto } from '@/hooks/useReports';
 import { MAX_REPORT_PHOTOS, REPORT_DESCRIPTION_MAX } from '@/config';
 import { REPORT_TYPES, REPORT_TYPE_META, SEVERITIES } from '@/lib/domain';
-import { streetName } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { ReportType, Severity } from '@/types';
 
@@ -30,7 +27,6 @@ const schema = z
   .object({
     lat: z.number({ required_error: 'report.errors.location', invalid_type_error: 'report.errors.location' }),
     lng: z.number({ required_error: 'report.errors.location', invalid_type_error: 'report.errors.location' }),
-    street_id: z.string().nullable(),
     type: z.enum(['illegal_dump', 'toxic_release', 'overflowing_bin', 'burning', 'water_pollution', 'other'], {
       required_error: 'report.errors.type',
       invalid_type_error: 'report.errors.type',
@@ -62,14 +58,12 @@ export function ReportWizard() {
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
-  const { data: streets = [] } = useStreets();
-  const nearest = useNearestStreet();
   const upload = useUploadPhoto();
   const create = useCreateReport();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { street_id: null, severity: 2, description: '', photo_urls: [] } as Partial<FormValues>,
+    defaultValues: { severity: 2, description: '', photo_urls: [] } as Partial<FormValues>,
     mode: 'onTouched',
   });
   const { control, watch, setValue, trigger, handleSubmit, formState } = form;
@@ -86,7 +80,6 @@ export function ReportWizard() {
   const setPoint = (la: number, ln: number) => {
     setValue('lat', la, { shouldValidate: true });
     setValue('lng', ln, { shouldValidate: true });
-    nearest.mutate({ lat: la, lng: ln }, { onSuccess: (id) => setValue('street_id', id) });
   };
 
   const locate = () => {
@@ -207,16 +200,6 @@ export function ReportWizard() {
             </Button>
           </div>
           <FieldError message={errMsg('lat')} />
-          {lat !== undefined && (
-            <Field label={t('report.street')} htmlFor="street" hint={nearest.isPending ? t('report.detectingStreet') : t('report.streetHint')}>
-              <SimpleSelect
-                id="street"
-                value={watch('street_id') ?? 'none'}
-                onValueChange={(v) => setValue('street_id', v === 'none' ? null : v)}
-                options={[{ value: 'none', label: t('common.noStreet') }, ...streets.map((s) => ({ value: s.id, label: streetName(s) }))]}
-              />
-            </Field>
-          )}
         </section>
       )}
 

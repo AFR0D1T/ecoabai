@@ -15,7 +15,7 @@ function useResetAfterAuth() {
   const qc = useQueryClient();
   return async () => {
     // Сменился пользователь — сбрасываем всё, что зависит от него
-    qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'session' && q.queryKey[0] !== 'streets' && q.queryKey[0] !== 'settings' });
+    qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'session' && q.queryKey[0] !== 'settings' });
     await qc.invalidateQueries({ queryKey: queryKeys.session });
   };
 }
@@ -52,7 +52,7 @@ export function useSignOut() {
     mutationFn: authApi.signOut,
     onSuccess: () => {
       qc.setQueryData(queryKeys.session, null);
-      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'session' && q.queryKey[0] !== 'streets' && q.queryKey[0] !== 'settings' });
+      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'session' && q.queryKey[0] !== 'settings' });
     },
   });
 }

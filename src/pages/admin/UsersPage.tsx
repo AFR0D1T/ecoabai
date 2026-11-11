@@ -4,26 +4,21 @@ import { Ban, MoreVertical, Search, Shield, ShieldOff, UserCheck, Users } from '
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { SimpleSelect } from '@/components/ui/select';
 import { EmptyState, PageHeader, Skeleton } from '@/components/ui/misc';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar } from '@/components/Avatar';
 import { useProfiles, useSetUserBlocked, useSetUserRole } from '@/hooks/useCommunity';
 import { useSession } from '@/hooks/useAuth';
-import { useStreetLookup, useStreets } from '@/hooks/useSettings';
-import { fmtDate, fmtRelative, streetName } from '@/lib/format';
+import { fmtDate, fmtRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 export default function UsersPage() {
   const { t } = useTranslation();
   const { user: me } = useSession();
   const [search, setSearch] = useState('');
-  const [streetId, setStreetId] = useState('all');
   const deferred = useDeferredValue(search);
-  const { data, isLoading } = useProfiles({ search: deferred, street_id: streetId });
-  const { data: streets = [] } = useStreets();
-  const street = useStreetLookup();
+  const { data, isLoading } = useProfiles({ search: deferred });
   const block = useSetUserBlocked();
   const role = useSetUserRole();
 
@@ -42,13 +37,6 @@ export default function UsersPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <SimpleSelect
-          className="sm:w-56"
-          ariaLabel={t('admin.users.street')}
-          value={streetId}
-          onValueChange={setStreetId}
-          options={[{ value: 'all', label: t('admin.users.allStreets') }, ...streets.map((s) => ({ value: s.id, label: streetName(s) }))]}
-        />
       </div>
 
       <Card>
@@ -60,7 +48,6 @@ export default function UsersPage() {
               <TableRow>
                 <TableHead>{t('admin.users.name')}</TableHead>
                 <TableHead className="hidden md:table-cell">{t('auth.email')}</TableHead>
-                <TableHead className="hidden lg:table-cell">{t('admin.users.street')}</TableHead>
                 <TableHead className="text-right">{t('admin.users.points')}</TableHead>
                 <TableHead className="hidden xl:table-cell">{t('admin.users.registered')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('admin.users.lastActive')}</TableHead>
@@ -83,7 +70,6 @@ export default function UsersPage() {
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{p.email}</TableCell>
-                    <TableCell className="hidden whitespace-nowrap lg:table-cell">{streetName(street(p.street_id))}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">{p.points}</TableCell>
                     <TableCell className="hidden whitespace-nowrap xl:table-cell">{fmtDate(p.created_at, 'dd.MM.yyyy')}</TableCell>
                     <TableCell className="hidden whitespace-nowrap lg:table-cell">{fmtRelative(p.last_active_at)}</TableCell>

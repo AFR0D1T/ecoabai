@@ -1,7 +1,7 @@
 import { format, formatDistanceToNow } from 'date-fns';
 import { ru, kk } from 'date-fns/locale';
-import i18n, { currentLang } from '@/i18n';
-import type { Badge, Street } from '@/types';
+import { currentLang } from '@/i18n';
+import type { Badge } from '@/types';
 
 export function dateLocale() {
   return currentLang() === 'kk' ? kk : ru;
@@ -29,11 +29,6 @@ export function fmtNumber(n: number): string {
 
 export function fmtPercent(v: number): string {
   return `${Math.round(v * 100)}%`;
-}
-
-export function streetName(street: Street | undefined | null): string {
-  if (!street) return i18n.t('common.noStreet');
-  return currentLang() === 'kk' ? street.name_kk : street.name_ru;
 }
 
 export function badgeName(b: Badge): string {

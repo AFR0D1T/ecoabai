@@ -6,34 +6,12 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db, utcnow
 from ..deps import require_admin
-from ..models import Event, EventParticipant, Report, Street, User, VillageSettings
-from ..schemas import StreetOut, StreetRankingOut
+from ..models import Event, EventParticipant, Report, User, VillageSettings
 from ..services.gamification import month_start
 
 router = APIRouter(tags=["stats"])
 ACTIVE = ("new", "in_review", "in_progress")
 TYPES = ("illegal_dump", "toxic_release", "overflowing_bin", "burning", "water_pollution", "other")
-
-
-@router.get("/stats/streets", response_model=list[StreetRankingOut])
-def street_ranking(db: Session = Depends(get_db)) -> list[StreetRankingOut]:
-    reports = list(db.scalars(select(Report)))
-    rows = []
-    for s in db.scalars(select(Street)):
-        mine = [r for r in reports if r.street_id == s.id]
-        active = [r for r in mine if r.status in ACTIVE]
-        score = sum(r.severity for r in active)
-        rows.append({"street": StreetOut.model_validate(s), "active_reports": len(active), "severity_score": score,
-                     "resolved_reports": sum(1 for r in mine if r.status == "resolved"),
-                     "cleanliness": max(0, 100 - score * 8)})
-    rows.sort(key=lambda r: (-r["cleanliness"], -r["resolved_reports"]))
-    out, rank, prev = [], 0, None
-    for i, r in enumerate(rows):
-        if r["cleanliness"] != prev:
-            rank = i + 1
-        prev = r["cleanliness"]
-        out.append(StreetRankingOut(rank=rank, **r))
-    return out
 
 
 def _months_back(n: int) -> list[datetime]:

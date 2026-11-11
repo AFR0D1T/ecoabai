@@ -14,15 +14,13 @@ import { PhotoGallery } from '@/components/PhotoLightbox';
 import { ReportStatusBadge, ReportTypeLabel, SeverityBadge } from '@/components/StatusBadges';
 import { ReportHistoryList } from '@/features/reports/ReportTimeline';
 import { useReport, useSetReportStatus, useSetResolvedPhoto, useUploadPhoto } from '@/hooks/useReports';
-import { useStreetLookup } from '@/hooks/useSettings';
 import { REPORT_STATUSES } from '@/lib/domain';
-import { fmtDateTime, streetName } from '@/lib/format';
+import { fmtDateTime } from '@/lib/format';
 import type { ReportStatus } from '@/types';
 
 export function ReportDetailSheet({ reportId, onClose }: { reportId: string | null; onClose: () => void }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const street = useStreetLookup();
   const { data, isLoading } = useReport(reportId);
   const setStatus = useSetReportStatus();
   const setPhoto = useSetResolvedPhoto();
@@ -45,7 +43,7 @@ export function ReportDetailSheet({ reportId, onClose }: { reportId: string | nu
       <DialogContent side="right" className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{r ? <ReportTypeLabel type={r.type} /> : t('admin.reports.card')}</DialogTitle>
-          {r && <DialogDescription>{fmtDateTime(r.created_at)} · {streetName(street(r.street_id))}</DialogDescription>}
+          {r && <DialogDescription>{fmtDateTime(r.created_at)}</DialogDescription>}
         </DialogHeader>
         {isLoading || !r ? (
           <div className="space-y-3">
@@ -133,7 +131,7 @@ export function ReportDetailSheet({ reportId, onClose }: { reportId: string | nu
                   state: {
                     createAt: { lat: r.lat, lng: r.lng },
                     category: 'cleanup',
-                    title: t('admin.reports.cleanupTitle', { street: streetName(street(r.street_id)) }),
+                    title: t('admin.reports.cleanupTitle'),
                   },
                 })
               }

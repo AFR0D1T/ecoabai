@@ -7,10 +7,9 @@ import { format } from 'date-fns';
 import { Activity, CalendarCheck, Clock, Users, MessageSquareWarning, Percent } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader, Skeleton } from '@/components/ui/misc';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BaseMap } from '@/components/map/BaseMap';
-import { useDashboardStats, useStreetRanking } from '@/hooks/useCommunity';
-import { dateLocale, fmtNumber, fmtPercent, streetName } from '@/lib/format';
+import { useDashboardStats } from '@/hooks/useCommunity';
+import { dateLocale, fmtNumber, fmtPercent } from '@/lib/format';
 import { STATUS_COLOR, REPORT_TYPE_META } from '@/lib/domain';
 
 const C = { green: '#43a047', orange: '#ef6c00', blue: '#1e88e5', grey: '#9e9e9e' };
@@ -42,7 +41,6 @@ const tooltipStyle = { contentStyle: { background: 'hsl(var(--card))', border: '
 export default function DashboardPage() {
   const { t } = useTranslation();
   const { data: s, isLoading } = useDashboardStats();
-  const ranking = useStreetRanking();
   const monthLabel = (m: string) => format(new Date(`${m}-01T00:00:00`), 'LLL', { locale: dateLocale() });
 
   return (
@@ -128,7 +126,7 @@ export default function DashboardPage() {
             </ChartCard>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">{t('admin.dashboard.hotspots')}</CardTitle></CardHeader>
               <CardContent>
@@ -146,35 +144,6 @@ export default function DashboardPage() {
                     ))}
                   </BaseMap>
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">{t('admin.dashboard.streetRanking')}</CardTitle></CardHeader>
-              <CardContent>
-                {ranking.isLoading ? <Skeleton className="h-48" /> : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>#</TableHead>
-                        <TableHead>{t('admin.users.street')}</TableHead>
-                        <TableHead className="text-right">{t('admin.dashboard.active2')}</TableHead>
-                        <TableHead className="text-right">{t('admin.dashboard.resolved')}</TableHead>
-                        <TableHead className="text-right">{t('leaderboard.cleanliness')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {ranking.data?.map((r) => (
-                        <TableRow key={r.street.id}>
-                          <TableCell>{r.rank}</TableCell>
-                          <TableCell className="font-medium">{streetName(r.street)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{r.active_reports}</TableCell>
-                          <TableCell className="text-right tabular-nums">{r.resolved_reports}</TableCell>
-                          <TableCell className="text-right font-semibold tabular-nums">{r.cleanliness}%</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
               </CardContent>
             </Card>
           </div>

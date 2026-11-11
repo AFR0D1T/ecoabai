@@ -12,15 +12,6 @@ def new_id() -> str:
     return str(uuid.uuid4())
 
 
-class Street(Base):
-    __tablename__ = "streets"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
-    name_ru: Mapped[str] = mapped_column(String(120))
-    name_kk: Mapped[str] = mapped_column(String(120))
-    # линия улицы [[lat, lng], ...] — для поиска ближайшей улицы (в Postgres можно заменить на PostGIS)
-    geometry: Mapped[list | None] = mapped_column(JSON, nullable=True)
-
-
 class User(Base):
     """Профиль + учётные данные. Наружу отдаётся только через схему ProfileOut."""
 
@@ -30,7 +21,6 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     first_name: Mapped[str] = mapped_column(String(50))
     last_name: Mapped[str] = mapped_column(String(50))
-    street_id: Mapped[str | None] = mapped_column(ForeignKey("streets.id", ondelete="SET NULL"), nullable=True)
     role: Mapped[str] = mapped_column(String(16), default="resident")
     points: Mapped[int] = mapped_column(Integer, default=0)
     avatar_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
@@ -107,7 +97,6 @@ class Report(Base):
     description: Mapped[str] = mapped_column(String(500))
     lat: Mapped[float] = mapped_column(Float)
     lng: Mapped[float] = mapped_column(Float)
-    street_id: Mapped[str | None] = mapped_column(ForeignKey("streets.id", ondelete="SET NULL"), nullable=True)
     status: Mapped[str] = mapped_column(String(12), default="new", index=True)
     photo_urls: Mapped[list] = mapped_column(JSON, default=list)
     resolved_photo_url: Mapped[str | None] = mapped_column(String(300), nullable=True)

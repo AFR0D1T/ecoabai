@@ -44,7 +44,6 @@ function useInvalidateReports() {
     void qc.invalidateQueries({ queryKey: queryKeys.myReports });
     void qc.invalidateQueries({ queryKey: queryKeys.newReportsCount });
     void qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-    void qc.invalidateQueries({ queryKey: queryKeys.streetRanking });
     void qc.invalidateQueries({ queryKey: queryKeys.notifications });
   };
 }

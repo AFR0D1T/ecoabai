@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Award, CalendarCheck, CalendarDays, History, LogOut, MapPin, MessageSquareWarning, Pencil, Star, Trophy } from 'lucide-react';
+import { Award, CalendarCheck, CalendarDays, History, LogOut, MessageSquareWarning, Pencil, Star, Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EmptyState, Skeleton } from '@/components/ui/misc';
@@ -16,8 +16,7 @@ import { useSession, useSignOut } from '@/hooks/useAuth';
 import { useMyParticipations } from '@/hooks/useEvents';
 import { useMyReports } from '@/hooks/useReports';
 import { useMyBadges, useUserRank } from '@/hooks/useCommunity';
-import { useStreetLookup } from '@/hooks/useSettings';
-import { fmtDate, fmtNumber, streetName } from '@/lib/format';
+import { fmtDate, fmtNumber } from '@/lib/format';
 import { isEventPast } from '@/lib/domain';
 import { cn } from '@/lib/utils';
 
@@ -40,7 +39,6 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { hash } = useLocation();
   const signOut = useSignOut();
-  const street = useStreetLookup();
   const [editOpen, setEditOpen] = useState(false);
 
   const participations = useMyParticipations();
@@ -73,9 +71,7 @@ export default function ProfilePage() {
           <Avatar first={user.first_name} last={user.last_name} url={user.avatar_url} size="lg" />
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-bold">{user.first_name} {user.last_name}</h1>
-            <p className="flex items-center justify-center gap-1 text-sm text-muted-foreground sm:justify-start">
-              <MapPin className="h-4 w-4" aria-hidden /> {streetName(street(user.street_id))}
-            </p>
+            <p className="truncate text-sm text-muted-foreground">{user.email}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
@@ -164,7 +160,7 @@ export default function ProfilePage() {
                     <ReportTypeLabel type={r.type} className="text-sm" />
                     <ReportStatusBadge status={r.status} />
                   </div>
-                  <p className="text-xs text-muted-foreground">{fmtDate(r.created_at)} · {streetName(street(r.street_id))}</p>
+                  <p className="text-xs text-muted-foreground">{fmtDate(r.created_at)}</p>
                   <p className="mt-1 line-clamp-2 text-sm">{r.description}</p>
                 </div>
               </div>

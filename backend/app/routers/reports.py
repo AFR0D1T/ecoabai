@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db, utcnow
 from ..deps import current_user, optional_user, require_admin
 from ..errors import ApiError
-from ..models import Report, ReportStatusChange, Street, User
+from ..models import Report, ReportStatusChange, User
 from ..schemas import (
     AuthorOut, MyReportOut, ReportDetailsOut, ReportIn, ReportOut, ReportStatus, ReportStatusIn, ReportType,
     ResolvedPhotoIn, StatusChangeOut,
@@ -38,7 +38,6 @@ def history_of(db: Session, report_id: str) -> list[StatusChangeOut]:
 def list_reports(
     statuses: list[ReportStatus] | None = Query(default=None, alias="status"),
     type: ReportType | Literal["all"] = "all",
-    street_id: str = "all",
     severity: Literal["1", "2", "3", "all"] = "all",
     date_from: datetime | None = Query(default=None, alias="from"),
     date_to: datetime | None = Query(default=None, alias="to"),
@@ -53,8 +52,6 @@ def list_reports(
         q = q.where(Report.status.in_(statuses))
     if type != "all":
         q = q.where(Report.type == type)
-    if street_id != "all":
-        q = q.where(Report.street_id == street_id)
     if severity != "all":
         q = q.where(Report.severity == int(severity))
     if date_from:
@@ -99,12 +96,9 @@ def get_report(report_id: str, user: User | None = Depends(optional_user), db: S
 def create_report(body: ReportIn, request: Request, user: User = Depends(current_user),
                   db: Session = Depends(get_db)) -> ReportOut:
     limiter.hit(f"report:user:{user.id}", 20, 3600)
-    street_id = body.street_id
-    if street_id and not db.get(Street, street_id):
-        raise ApiError(422, "validation")
     now = utcnow()
     r = Report(user_id=user.id, type=body.type, severity=body.severity, description=body.description,
-               lat=body.lat, lng=body.lng, street_id=street_id, status="new", photo_urls=body.photo_urls,
+               lat=body.lat, lng=body.lng, status="new", photo_urls=body.photo_urls,
                created_at=now, updated_at=now)
     db.add(r)
     db.flush()

@@ -12,19 +12,12 @@ export interface Profile {
   first_name: string;
   last_name: string;
   email: string;
-  street_id: string | null;
   role: Role;
   points: number;
   avatar_url: string | null;
   is_blocked: boolean;
   created_at: string; // ISO
   last_active_at: string;
-}
-
-export interface Street {
-  id: string;
-  name_ru: string;
-  name_kk: string;
 }
 
 export type EventCategory = 'cleanup' | 'tree_planting' | 'recycling' | 'lecture' | 'other';
@@ -69,7 +62,6 @@ export interface Report {
   description: string;
   lat: number;
   lng: number;
-  street_id: string | null; // ближайшая улица
   status: ReportStatus;
   photo_urls: string[]; // фото от жителя (до 3)
   resolved_photo_url: string | null; // фото «после» от админа
@@ -150,9 +142,8 @@ export interface SignUpInput {
   last_name: string;
   email: string;
   password: string;
-  street_id: string;
 }
-export type ProfileUpdate = Partial<Pick<Profile, 'first_name' | 'last_name' | 'street_id' | 'avatar_url'>>;
+export type ProfileUpdate = Partial<Pick<Profile, 'first_name' | 'last_name' | 'avatar_url'>>;
 
 export type EventScope = 'upcoming' | 'past' | 'all';
 export interface EventFilters {
@@ -189,7 +180,6 @@ export interface ParticipantWithProfile {
 export interface ReportFilters {
   statuses?: ReportStatus[];
   type?: ReportType | 'all';
-  street_id?: string | 'all';
   severity?: Severity | 'all';
   from?: string | null; // ISO
   to?: string | null;
@@ -202,7 +192,6 @@ export interface ReportInput {
   description: string;
   lat: number;
   lng: number;
-  street_id: string | null;
   photo_urls: string[];
 }
 
@@ -222,22 +211,12 @@ export interface BadgeProgress {
 export type LeaderboardPeriod = 'month' | 'all';
 export interface LeaderboardEntry {
   rank: number;
-  profile: Pick<Profile, 'id' | 'first_name' | 'last_name' | 'street_id' | 'avatar_url'>;
+  profile: Pick<Profile, 'id' | 'first_name' | 'last_name' | 'avatar_url'>;
   points: number;
-}
-
-export interface StreetRankingEntry {
-  rank: number;
-  street: Street;
-  active_reports: number;
-  severity_score: number; // сумма серьёзности активных обращений
-  resolved_reports: number;
-  cleanliness: number; // 0..100, выше — чище
 }
 
 export interface ProfileFilters {
   search?: string;
-  street_id?: string | 'all';
 }
 
 export interface DashboardStats {
@@ -259,7 +238,3 @@ export interface DashboardStats {
   hotspots: { lat: number; lng: number; weight: number; status: ReportStatus }[];
 }
 
-export interface StreetInput {
-  name_ru: string;
-  name_kk: string;
-}

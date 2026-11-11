@@ -7,9 +7,8 @@ import { EmptyState, PageHeader, Skeleton } from '@/components/ui/misc';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CategoryBadge, EventStatusBadge } from '@/components/StatusBadges';
 import { useEvent, useEventParticipants, useSetAttendance } from '@/hooks/useEvents';
-import { useStreetLookup } from '@/hooks/useSettings';
 import { downloadFile, slugify, toCsv } from '@/lib/files';
-import { fmtDateTime, streetName } from '@/lib/format';
+import { fmtDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 export default function EventAdminDetailPage() {
@@ -18,7 +17,6 @@ export default function EventAdminDetailPage() {
   const event = useEvent(id);
   const participants = useEventParticipants(id);
   const setAttendance = useSetAttendance(id ?? '');
-  const street = useStreetLookup();
 
   if (event.isLoading) return <div className="p-6"><Skeleton className="h-40" /></div>;
   if (!event.data) return <div className="p-6"><EmptyState icon={SearchX} title={t('events.notFound')} /></div>;
@@ -28,11 +26,10 @@ export default function EventAdminDetailPage() {
 
   const exportCsv = () => {
     const rows: (string | number)[][] = [
-      [t('admin.users.name'), t('auth.email'), t('admin.users.street'), t('admin.events.cRegistered'), t('admin.events.cAttendance')],
+      [t('admin.users.name'), t('auth.email'), t('admin.events.cRegistered'), t('admin.events.cAttendance')],
       ...list.map(({ participant, profile }) => [
         `${profile.last_name} ${profile.first_name}`,
         profile.email,
-        streetName(street(profile.street_id)),
         fmtDateTime(participant.registered_at),
         t(`participation.${participant.status}`),
       ]),
@@ -74,7 +71,6 @@ export default function EventAdminDetailPage() {
                 <TableHead className="w-24">{t('admin.events.cAttendance')}</TableHead>
                 <TableHead>{t('admin.users.name')}</TableHead>
                 <TableHead className="hidden sm:table-cell">{t('auth.email')}</TableHead>
-                <TableHead className="hidden md:table-cell">{t('admin.users.street')}</TableHead>
                 <TableHead className="hidden md:table-cell">{t('admin.events.cRegistered')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -100,7 +96,6 @@ export default function EventAdminDetailPage() {
                     </TableCell>
                     <TableCell className="font-medium">{profile.last_name} {profile.first_name}</TableCell>
                     <TableCell className="hidden sm:table-cell">{profile.email}</TableCell>
-                    <TableCell className="hidden md:table-cell">{streetName(street(profile.street_id))}</TableCell>
                     <TableCell className="hidden whitespace-nowrap md:table-cell">{fmtDateTime(participant.registered_at)}</TableCell>
                   </TableRow>
                 );
