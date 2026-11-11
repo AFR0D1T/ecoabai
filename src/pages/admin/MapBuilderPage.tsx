@@ -32,7 +32,6 @@ export default function MapBuilderPage() {
 
   const [showEvents, setShowEvents] = useState(true);
   const [showReports, setShowReports] = useState(true);
-  const [showResolved, setShowResolved] = useState(true);
   const [showPast, setShowPast] = useState(false);
   const [pending, setPending] = useState<{ lat: number; lng: number } | null>(null);
   const [form, setForm] = useState<EventFormInitial | null>(null);
@@ -49,7 +48,7 @@ export default function MapBuilderPage() {
   }, [location.state, navigate]);
 
   const visibleEvents = (events.data ?? []).filter((e) => showPast || (e.status !== 'finished' && e.status !== 'cancelled'));
-  const visibleReports = (reports.data ?? []).filter((r) => showResolved || (r.status !== 'resolved' && r.status !== 'rejected'));
+  const visibleReports = (reports.data ?? []).filter((r) => r.status !== 'resolved' && r.status !== 'rejected');
 
   const editEvent = (e: EcoEvent) => setForm({ ...e });
 
@@ -129,7 +128,6 @@ export default function MapBuilderPage() {
         <Switch checked={showEvents} onCheckedChange={setShowEvents} label={`📅 ${t('map.layerEvents')}`} />
         <Switch checked={showPast} onCheckedChange={setShowPast} label={t('admin.map.showPast')} />
         <Switch checked={showReports} onCheckedChange={setShowReports} label={`⚠️ ${t('map.layerReports')}`} />
-        <Switch checked={showResolved} onCheckedChange={setShowResolved} label={t('admin.map.showClosed')} />
         <p className="border-t pt-2 text-xs text-muted-foreground">{t('admin.map.hint')}</p>
       </Card>
 

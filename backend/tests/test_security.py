@@ -206,6 +206,11 @@ def test_report_confirm_awards_ten_points_once(admin: Api) -> None:
     assert res.get("/api/auth/session").json()["user"]["points"] == before + 10
     kinds = [n["kind"] for n in res.get("/api/me/notifications").json()]
     assert kinds.count("report_status") >= 2
+    # решённое пропадает с публичной карты, но остаётся в истории автора и у админа
+    assert rep["id"] not in [r["id"] for r in Api().get("/api/reports").json()]
+    assert rep["id"] not in [r["id"] for r in res.get("/api/reports").json()]
+    assert rep["id"] in [r["id"] for r in res.get("/api/me/reports").json()]
+    assert rep["id"] in [r["id"] for r in admin.get("/api/reports").json()]
 
 
 # ---------- конфигурация деплоя ----------

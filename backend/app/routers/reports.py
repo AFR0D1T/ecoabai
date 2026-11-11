@@ -17,6 +17,8 @@ from ..security import limiter
 from ..services.gamification import REPORT_CONFIRMED_POINTS, after_points_changed, award_points, notify
 from ..services.texts import tr
 
+OPEN_STATUSES = ("new", "in_review", "in_progress")
+
 router = APIRouter(tags=["reports"])
 
 
@@ -47,7 +49,9 @@ def list_reports(
 ) -> list[ReportOut]:
     q = select(Report)
     if not (user and user.role == "admin"):
-        q = q.where(Report.status != "rejected")
+        # публично видны только открытые обращения; решённые и отклонённые остаются историей
+        # (у автора — в профиле, у админа — в разделе «Обращения»)
+        q = q.where(Report.status.in_(OPEN_STATUSES))
     if statuses:
         q = q.where(Report.status.in_(statuses))
     if type != "all":

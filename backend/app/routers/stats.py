@@ -80,5 +80,5 @@ def dashboard(_: User = Depends(require_admin), db: Session = Depends(get_db)) -
         "reports_by_month": by_month,
         "participation_by_month": participation,
         "hotspots": [{"lat": r.lat, "lng": r.lng, "weight": r.severity, "status": r.status}
-                     for r in reports if r.status != "rejected"],
+                     for r in reports if r.status in ACTIVE],
     }

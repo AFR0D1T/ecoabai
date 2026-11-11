@@ -27,7 +27,6 @@ function Legend() {
     { color: STATUS_COLOR.new, label: t('reportStatus.new') },
     { color: STATUS_COLOR.in_progress, label: t('reportStatus.in_progress') },
     { color: CRITICAL_COLOR, label: t('map.critical') },
-    { color: STATUS_COLOR.resolved, label: t('reportStatus.resolved') },
   ];
   return (
     <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -50,7 +49,6 @@ export default function HomeMapPage() {
 
   const [showEvents, setShowEvents] = useState(true);
   const [showReports, setShowReports] = useState(true);
-  const [showResolved, setShowResolved] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -67,7 +65,7 @@ export default function HomeMapPage() {
     }
   }, [location.state, navigate, t]);
 
-  const visibleReports = (reports.data ?? []).filter((r) => showResolved || r.status !== 'resolved');
+  const visibleReports = (reports.data ?? []).filter((r) => r.status !== 'resolved' && r.status !== 'rejected');
   const upcoming = events.data ?? [];
 
   const focusEvent = (e: EcoEvent) => {
@@ -86,7 +84,6 @@ export default function HomeMapPage() {
     <div className="space-y-2.5">
       <Switch checked={showEvents} onCheckedChange={setShowEvents} label={`📅 ${t('map.layerEvents')}`} />
       <Switch checked={showReports} onCheckedChange={setShowReports} label={`⚠️ ${t('map.layerReports')}`} />
-      <Switch checked={showResolved} onCheckedChange={setShowResolved} label={t('map.showResolved')} className={cn(!showReports && 'opacity-50')} />
       <Legend />
     </div>
   );
