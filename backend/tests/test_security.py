@@ -72,11 +72,11 @@ def test_refresh_rotation_and_reuse_detection(resident: Api, monkeypatch) -> Non
 
 def test_blocked_user_loses_access(admin: Api) -> None:
     victim = Api()
-    victim.login("user1@mail.kz")
+    victim.login("resident2@test.kz")
     uid = victim.get("/api/auth/session").json()["user"]["id"]
     assert admin.put(f"/api/admin/users/{uid}/blocked", json={"blocked": True}).status_code == 200
     assert victim.get("/api/me/reports").status_code in (401, 403)
-    assert victim.login("user1@mail.kz").json()["code"] == "user_blocked"
+    assert victim.login("resident2@test.kz").json()["code"] == "user_blocked"
 
 
 # ---------- права доступа ----------
@@ -95,7 +95,8 @@ def test_guest_permissions(guest: Api) -> None:
 
 def test_resident_cannot_use_admin_endpoints(resident: Api) -> None:
     ev = _upcoming_event(resident)
-    rep = resident.get("/api/reports").json()[0]
+    rep = resident.post("/api/reports", json={"type": "other", "severity": 1, "description": "Сломана скамейка",
+                                              "lat": 43.2, "lng": 76.7}).json()
     checks = [
         resident.get("/api/stats/dashboard"),
         resident.get("/api/admin/users"),
@@ -182,8 +183,12 @@ def test_attendance_awards_points_once_and_revokes(admin: Api) -> None:
 
 
 def test_event_capacity_enforced(admin: Api) -> None:
-    full = next(e for e in admin.get("/api/events", params={"scope": "upcoming"}).json()
-                if e["max_participants"] and e["participants_count"] >= e["max_participants"])
+    full = admin.post("/api/events", json={"title": "Малое мероприятие", "category": "other", "status": "published",
+                                           "starts_at": "2030-01-01T10:00:00Z", "lat": 43.2, "lng": 76.7,
+                                           "max_participants": 1}).json()
+    first = Api()
+    first.login("resident2@test.kz")
+    assert first.post(f"/api/events/{full['id']}/registration").status_code == 200
     res = Api()
     res.login("resident@test.kz")
     r = res.post(f"/api/events/{full['id']}/registration")
@@ -240,3 +245,39 @@ def test_seed_images_served_from_db(guest: Api) -> None:
     r = guest.get(ev["cover_url"])
     assert r.status_code == 200 and r.headers["content-type"].startswith("image/svg+xml")
     assert "sandbox" in r.headers["content-security-policy"]
+
+
+def test_demo_seed_is_small_and_reset_once(fresh_db: None) -> None:
+    from sqlalchemy import func, select
+
+    from app.db import SessionLocal
+    from app.models import Event, Report, User
+    from app.seed import init_db
+
+    with SessionLocal() as db:
+        assert db.scalar(select(func.count(User.id))) == 3
+        assert db.scalar(select(func.count(Event.id))) == 3
+        assert db.scalar(select(func.count(Report.id))) == 0
+        db.add(Report(user_id=db.scalar(select(User.id).limit(1)), type="other", severity=1, description="x",
+                      lat=43.2, lng=76.7, photo_urls=[]))
+        db.commit()
+    init_db(seed_if_empty=True)  # версия та же — данные не трогаем
+    with SessionLocal() as db:
+        assert db.scalar(select(func.count(Report.id))) == 1
+
+
+def test_outdated_demo_db_is_wiped(fresh_db: None) -> None:
+    from sqlalchemy import delete, func, select
+
+    from app.db import SessionLocal
+    from app.models import AppMeta, User
+    from app.seed import init_db
+
+    with SessionLocal() as db:
+        db.add(User(email="old@mail.kz", password_hash="x", first_name="Old", last_name="User"))
+        db.execute(delete(AppMeta))  # как в базе прошлой версии, где метки ещё не было
+        db.commit()
+    init_db(seed_if_empty=True)
+    with SessionLocal() as db:
+        assert db.scalar(select(func.count(User.id))) == 3
+        assert db.scalar(select(User).where(User.email == "old@mail.kz")) is None

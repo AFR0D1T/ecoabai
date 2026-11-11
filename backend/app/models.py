@@ -177,3 +177,11 @@ class StoredFile(Base):
     content_type: Mapped[str] = mapped_column(String(40))
     data: Mapped[bytes] = mapped_column(LargeBinary)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class AppMeta(Base):
+    """Служебные значения (например, версия демо-данных)."""
+
+    __tablename__ = "app_meta"
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    value: Mapped[str] = mapped_column(String(200))

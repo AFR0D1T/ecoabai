@@ -1,10 +1,8 @@
-"""Демо-данные: ~40 жителей, 8 мероприятий, 25 обращений, значки.
+"""Демо-данные: 3 аккаунта (админ и два жителя), 3 мероприятия, значки.
 
 Запуск вручную:  python -m app.seed --reset
 """
 import argparse
-import math
-import random
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import inspect, select, text
@@ -13,15 +11,14 @@ from sqlalchemy.orm import Session
 from .config import get_settings
 from .db import Base, SessionLocal, engine, utcnow
 from .models import (
-    Badge, StoredFile, Event, EventParticipant, Notification, PointTransaction, Report, ReportStatusChange, User,
-    VillageSettings,
+    AppMeta, Badge, Event, EventParticipant, Notification, StoredFile, User, VillageSettings,
 )
 from .security import hash_password
-from .services.gamification import REPORT_CONFIRMED_POINTS, award_points, check_badges, notify
-from .services.texts import tr
+from .services.gamification import award_points, check_badges
 
 CENTER = (43.2105, 76.7606)  # село Абай, Карасайский р-н (синхронно с src/config.ts)
 TEST_PASSWORD = "123456"
+DEMO_VERSION = "2"  # увеличить, чтобы демо-база один раз пересоздалась при деплое
 
 BADGES = [
     ("first_step", "Первый шаг", "Алғашқы қадам", "Первое подтверждённое обращение или участие в мероприятии",
@@ -44,16 +41,6 @@ SVG_ART = {
     "resolved": ("✨", "#a5d6a7", "#2e7d32"),
 }
 
-MALE = (["Ерлан", "Нурлан", "Асхат", "Данияр", "Бауыржан", "Арман", "Сергей", "Алексей", "Тимур", "Руслан", "Айдос",
-         "Марат", "Дмитрий", "Ержан"],
-        ["Тулегенов", "Сейткали", "Жумабаев", "Ахметов", "Иванов", "Касымов", "Петров", "Омаров", "Исаев", "Беков",
-         "Мусин", "Садыков"])
-FEMALE = (["Айгуль", "Динара", "Асель", "Мадина", "Гульнара", "Жанар", "Ольга", "Елена", "Сауле", "Айжан", "Наталья",
-           "Камила", "Алия"],
-          ["Сарсенова", "Ахметова", "Иванова", "Касымова", "Нуркенова", "Смагулова", "Петрова", "Омарова", "Бекова",
-           "Мусина", "Садыкова"])
-
-
 def write_svgs(db: Session) -> None:
     for name, (emoji, c1, c2) in SVG_ART.items():
         svg = (f"<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450' viewBox='0 0 800 450'>"
@@ -71,7 +58,6 @@ def art(name: str) -> str:
 
 
 def seed(db: Session) -> None:
-    rnd = random.Random(20241111)
     now = utcnow()
     lat0, lng0 = CENTER
     write_svgs(db)
@@ -81,62 +67,35 @@ def seed(db: Session) -> None:
     db.add_all(Badge(code=c, name_ru=nr, name_kk=nk, description_ru=dr, description_kk=dk, icon=i)
                for c, nr, nk, dr, dk, i in BADGES)
     db.flush()
-    _seed_demo(db, rnd, now, lat0, lng0)
+    _seed_demo(db, now, lat0, lng0)
 
 
-def _seed_demo(db: Session, rnd: random.Random, now: datetime, lat0: float, lng0: float) -> None:
+def _seed_demo(db: Session, now: datetime, lat0: float, lng0: float) -> None:
+    """Небольшой набор для показа: 3 аккаунта и 3 мероприятия, без обращений."""
+    pw = hash_password(get_settings().demo_password or TEST_PASSWORD)  # в prod — ECOABAI_DEMO_PASSWORD
 
-    # один хэш на всех демо-пользователей — сид быстрее; в prod пароль задаётся ECOABAI_DEMO_PASSWORD
-    pw = hash_password(get_settings().demo_password or TEST_PASSWORD)
-
-    def mk(first: str, last: str, email: str, **kw: object) -> User:
-        created = now - timedelta(days=rnd.randint(5, 150), seconds=rnd.randint(0, 86000))
+    def mk(first: str, last: str, email: str, days: int, **kw: object) -> User:
         u = User(email=email, password_hash=pw, first_name=first, last_name=last,
-                 created_at=created,
-                 last_active_at=max(created, now - timedelta(days=rnd.randint(0, 45), seconds=rnd.randint(0, 80000))),
-                 **kw)
+                 created_at=now - timedelta(days=days), last_active_at=now - timedelta(hours=2), **kw)
         db.add(u)
         return u
 
-    admin = mk("Айгуль", "Сарсенова", "admin@test.kz", role="admin")
-    admin.created_at, admin.last_active_at = now - timedelta(days=200), now - timedelta(hours=1)
-    resident = mk("Ерлан", "Тулегенов", "resident@test.kz")
-    resident.created_at, resident.last_active_at = now - timedelta(days=90), now - timedelta(hours=2)
-    used: set[str] = set()
-    others: list[User] = []
-    for i in range(38):
-        firsts, lasts = MALE if rnd.random() < 0.5 else FEMALE
-        first, last = rnd.choice(firsts), rnd.choice(lasts)
-        while first + last in used:
-            first, last = rnd.choice(firsts), rnd.choice(lasts)
-        used.add(first + last)
-        u = mk(first, last, f"user{i + 1}@mail.kz", is_blocked=(i == 37))
-        if i != 37:
-            others.append(u)
+    admin = mk("Айгуль", "Сарсенова", "admin@test.kz", 60, role="admin")
+    resident = mk("Ерлан", "Тулегенов", "resident@test.kz", 45)
+    resident2 = mk("Асель", "Ахметова", "resident2@test.kz", 40)
     db.flush()
 
-    # мероприятия
     def at(days: int, hour: int) -> datetime:
         d = (now + timedelta(days=days)).astimezone(timezone(timedelta(hours=5)))  # время Казахстана
         return d.replace(hour=hour, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
 
     ev_defs = [
         ("Субботник на берегу реки", "Убираем мусор вдоль берега реки и у моста. Перчатки и мешки выдадим на месте. Возьмите удобную обувь и воду.",
-         "cleanup", "finished", -40, 10, 3, -0.0045, 0.0062, "Берег реки, у моста", 30, 20),
-        ("Посадка деревьев у школы", "Высаживаем 40 саженцев карагача и клёна вокруг школьного двора. Лопаты есть, приходите всей семьёй!",
-         "tree_planting", "finished", -25, 11, 3, 0.0034, -0.002, "Школа, школьный двор", 25, 25),
-        ("Сбор вторсырья: пластик и макулатура", "Принимаем чистый пластик (ПЭТ), картон и бумагу. Всё вывезем на переработку в город.",
-         "recycling", "finished", -10, 12, 4, 0.0004, 0.0006, "Площадь у акимата", None, 15),
+         "cleanup", "finished", -20, 10, 3, -0.0045, 0.0062, "Берег реки, у моста", 30, 20),
         ("Осенний субботник у магазина «Береке»", "Сгребаем листву, убираем стихийную свалку неподалёку. Встречаемся у магазина «Береке».",
          "cleanup", "published", 3, 10, 3, -0.003, -0.004, "Магазин «Береке»", 30, 20),
-        ("Лекция «Сортировка отходов дома»", "Рассказываем, как разделять отходы, что принимают пункты приёма и как уменьшить количество мусора в семье.",
-         "lecture", "published", 6, 18, 1, 0.0008, -0.0006, "Дом культуры", 30, 10),
-        ("Сбор батареек и ламп", "Батарейки и энергосберегающие лампы нельзя выбрасывать в общий бак. Сдайте их — отправим на утилизацию.",
-         "recycling", "published", 12, 11, 5, 0.0012, 0.0049, "У почты", None, 15),
         ("Посадка аллеи в сквере", "Высаживаем аллею из 20 берёз. Количество мест ограничено числом лопат.",
-         "tree_planting", "published", 20, 10, 4, 0.0048, 0.0002, "Сквер у акимата", 10, 25),
-        ("Эко-квест для детей", "Игра по станциям для детей 7–12 лет: узнаём, как помочь природе родного села.",
-         "other", "draft", 30, 15, 2, -0.001, 0.002, "Школьный стадион", 40, 20),
+         "tree_planting", "published", 10, 10, 4, 0.0048, 0.0002, "Сквер у акимата", 10, 25),
     ]
     events: list[Event] = []
     for title, desc, cat, st, days, hour, hours, dlat, dlng, addr, mx, reward in ev_defs:
@@ -149,99 +108,21 @@ def _seed_demo(db: Session, rnd: random.Random, now: datetime, lat0: float, lng0
         events.append(e)
     db.flush()
 
-    for idx, e in enumerate(events):
-        if e.status == "draft":
-            continue
-        past = e.status == "finished"
-        count = 10 if idx == 6 else rnd.randint(10, 18) if past else rnd.randint(4, 12)
-        pool = others[:]
-        rnd.shuffle(pool)
-        chosen = pool[:count]
-        if idx in (0, 1, 3):
-            chosen[0] = resident
-        for u in chosen:
-            status = ("attended" if u is resident or rnd.random() < 0.78 else "no_show") if past else "registered"
-            db.add(EventParticipant(event_id=e.id, user_id=u.id, status=status,
-                                    registered_at=e.starts_at - timedelta(days=rnd.randint(1, 12))))
+    finished, upcoming = events[0], events[1]
+    for u in (resident, resident2):
+        db.add(EventParticipant(event_id=finished.id, user_id=u.id, status="attended",
+                                registered_at=finished.starts_at - timedelta(days=5)))
+        db.add(EventParticipant(event_id=upcoming.id, user_id=u.id, status="registered", registered_at=now - timedelta(days=1)))
     db.flush()
-
-    # обращения
-    types = ["illegal_dump", "toxic_release", "overflowing_bin", "burning", "water_pollution", "other"]
-    plan = ["new"] * 6 + ["in_review"] * 4 + ["in_progress"] * 5 + ["resolved"] * 8 + ["rejected"] * 2
-    rnd.shuffle(plan)
-    descs = {
-        "illegal_dump": ["Строительный мусор свалили за гаражами.", "Куча бытового мусора у дороги, растёт каждую неделю.",
-                         "Выбросили старую мебель и шины в овраг."],
-        "toxic_release": ["Резкий химический запах из канавы, вода странного цвета.", "Кто-то слил отработанное масло на землю."],
-        "overflowing_bin": ["Контейнеры переполнены, мусор разносит ветер.", "Баки не вывозили больше недели."],
-        "burning": ["Жгут листву и пластик, весь двор в дыму.", "Горит свалка на окраине, дым идёт на дома."],
-        "water_pollution": ["В арыке плавает мусор и пена.", "Пятно масла на воде у моста."],
-        "other": ["Сломана урна на остановке.", "Разбитое стекло на детской площадке."],
-    }
-    comments = {
-        "rejected": ["Дубликат обращения, уже в работе.", "Не удалось подтвердить проблему на месте."],
-        "in_progress": ["Передали в коммунальную службу, вывоз запланирован.", "Проверили на месте, организуем уборку."],
-        "resolved": ["Мусор вывезен, территория убрана. Спасибо за сигнал!", "Проблема устранена."],
-    }
-    chains = {"new": ["new"], "in_review": ["new", "in_review"], "in_progress": ["new", "in_review", "in_progress"],
-              "resolved": ["new", "in_review", "in_progress", "resolved"], "rejected": ["new", "in_review", "rejected"]}
-    for i, st in enumerate(plan):
-        t = rnd.choice(types)
-        sev = 3 if t == "toxic_release" else rnd.randint(1, 3)
-        author = resident if i in (2, 8, 12, 18) else rnd.choice(others)
-        created = now - timedelta(days=rnd.randint(0, 5) if st == "new" else rnd.randint(6, 120), seconds=rnd.randint(0, 80000))
-        ang, r = rnd.random() * math.tau, 0.001 + rnd.random() * 0.0055
-        lat, lng = lat0 + math.sin(ang) * r * 0.8, lng0 + math.cos(ang) * r
-        rep = Report(user_id=author.id, type=t, severity=sev, description=rnd.choice(descs[t]), lat=lat, lng=lng,
-                     status=st,
-                     photo_urls=[art(f"photo_{t}")] * rnd.randint(1, 2), created_at=created, updated_at=created)
-        db.add(rep)
-        db.flush()
-        ts, last_comment, confirmed_at = created, None, None
-        for step in chains[st]:
-            c = rnd.choice(comments[step]) if step in comments else None
-            last_comment = c or last_comment
-            ts = min(ts, now - timedelta(hours=1))
-            db.add(ReportStatusChange(report_id=rep.id, status=step, comment=c,
-                                      changed_by=author.id if step == "new" else admin.id, changed_at=ts))
-            if step == "in_progress":
-                confirmed_at = ts
-            rep.updated_at = ts
-            if step == "resolved":
-                rep.resolved_at = ts
-            ts += timedelta(hours=rnd.randint(4, 72))
-        rep.admin_comment = last_comment
-        if st == "resolved" and rnd.random() < 0.7:
-            rep.resolved_photo_url = art("resolved")
-        if confirmed_at:
-            award_points(db, author.id, REPORT_CONFIRMED_POINTS, "report_confirmed", rep.id, confirmed_at)
+    for u in (resident, resident2):
+        award_points(db, u.id, finished.points_reward, "event_attended", finished.id, finished.ends_at)
     db.flush()
-
-    for e in events:
-        for p in db.scalars(select(EventParticipant).where(EventParticipant.event_id == e.id,
-                                                           EventParticipant.status == "attended")):
-            award_points(db, p.user_id, e.points_reward, "event_attended", e.id, e.ends_at)
+    for u in (resident, resident2):
+        check_badges(db, u.id, notify_user=False, earned_at=finished.ends_at)
     db.flush()
-    for u in db.scalars(select(User)):
-        last = db.scalar(select(PointTransaction.created_at).where(PointTransaction.user_id == u.id)
-                         .order_by(PointTransaction.created_at.desc()).limit(1))
-        check_badges(db, u.id, notify_user=False, earned_at=last or u.created_at)
-
-    # стартовые уведомления
-    my_rep = db.scalar(select(Report).where(Report.user_id == resident.id, Report.status != "new").limit(1))
-    if my_rep:
-        notify(db, resident, "report_status", tr("ru", "report_status_title"),
-               tr("ru", "report_status_body", status=tr("ru", f"status.{my_rep.status}")),
-               f"/profile#report-{my_rep.id}", my_rep.updated_at)
-    upcoming = events[3]
-    notify(db, resident, "event_reminder", "Скоро мероприятие", f"Не забудьте: «{upcoming.title}»",
-           f"/events/{upcoming.id}", now - timedelta(hours=3))
-    for rep in db.scalars(select(Report).where(Report.status == "new").limit(4)):
-        notify(db, admin, "new_report", tr("ru", "new_report_title"), tr("ru", f"type.{rep.type}"), f"/admin/reports?id={rep.id}",
-               rep.created_at)
-    db.flush()
-    for n in db.scalars(select(Notification).where(Notification.kind == "badge_earned")):
+    for n in db.scalars(select(Notification)):
         n.is_read = True
+    db.merge(AppMeta(key="demo_version", value=DEMO_VERSION))
     db.commit()
 
 
@@ -262,45 +143,28 @@ def ensure_admin(db: Session) -> None:
     db.commit()
 
 
-# Старые демо-данные с выдуманными улицами → нейтральные названия (для уже развёрнутых баз).
-LEGACY_EVENTS = {
-    "Осенний субботник на Садовой": ("Осенний субботник у магазина «Береке»", "Магазин «Береке»"),
-    "Посадка аллеи на Центральной": ("Посадка аллеи в сквере", "Сквер у акимата"),
-}
-LEGACY_ADDRESSES = {
-    "ул. Школьная, 12 (школа)": "Школа, школьный двор",
-    "ул. Садовая, магазин «Береке»": "Магазин «Береке»",
-    "Дом культуры, ул. Абая, 5": "Дом культуры",
-    "ул. Жамбыла, 20, у почты": "У почты",
-    "ул. Центральная, сквер": "Сквер у акимата",
-}
-
-
-def drop_legacy_streets() -> None:
-    """Улицы убраны из приложения: удаляем их таблицу и столбцы street_id (идемпотентно)."""
-    if engine.dialect.name != "postgresql":
-        return  # локальная SQLite: лишние nullable-столбцы ничему не мешают
-    if "streets" not in inspect(engine).get_table_names():
+def reset_outdated_demo(seed_if_empty: bool) -> None:
+    """Если в базе демо-данные старой версии — удаляем всё и заполняем заново (один раз на версию).
+    Работает только при ECOABAI_SEED_DEMO=true; с настоящими данными (seed_demo=false) ничего не трогает."""
+    if not seed_if_empty:
+        return
+    tables = inspect(engine).get_table_names()
+    if "village_settings" not in tables:
+        return  # пустая база — обычное заполнение
+    version = None
+    if "app_meta" in tables:
+        with engine.connect() as conn:
+            version = conn.execute(text("SELECT value FROM app_meta WHERE key = 'demo_version'")).scalar()
+    if version == DEMO_VERSION:
         return
     with engine.begin() as conn:
-        conn.execute(text("ALTER TABLE users DROP COLUMN IF EXISTS street_id"))
-        conn.execute(text("ALTER TABLE reports DROP COLUMN IF EXISTS street_id"))
-        conn.execute(text("DROP TABLE IF EXISTS streets"))
-
-
-def rename_legacy_events(db: Session) -> None:
-    for ev in db.scalars(select(Event)):
-        if ev.title in LEGACY_EVENTS:
-            ev.title, ev.address = LEGACY_EVENTS[ev.title]
-            if ev.description.endswith("в конце улицы. Встречаемся у магазина «Береке»."):
-                ev.description = ev.description.replace("в конце улицы", "неподалёку")
-        if ev.address in LEGACY_ADDRESSES:
-            ev.address = LEGACY_ADDRESSES[ev.address]
-    db.commit()
+        if engine.dialect.name == "postgresql":  # таблицы прошлых версий (например, streets)
+            conn.execute(text("DROP TABLE IF EXISTS streets CASCADE"))
+    Base.metadata.drop_all(engine)
 
 
 def init_db(seed_if_empty: bool) -> None:
-    drop_legacy_streets()
+    reset_outdated_demo(seed_if_empty)
     Base.metadata.create_all(engine)
     with SessionLocal() as db:
         if not db.get(VillageSettings, 1):
@@ -315,7 +179,6 @@ def init_db(seed_if_empty: bool) -> None:
                 db.commit()
         write_svgs(db)  # картинки демо-данных (идемпотентно)
         db.commit()
-        rename_legacy_events(db)
         ensure_admin(db)
 
 
