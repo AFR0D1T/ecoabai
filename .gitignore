@@ -9,4 +9,3 @@ backend/*.db
 backend/uploads
 __pycache__
 .pytest_cache
-.claude
